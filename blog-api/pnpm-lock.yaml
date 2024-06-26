@@ -23,6 +23,9 @@ importers:
       '@nestjs/typeorm':
         specifier: ^10.0.2
         version: 10.0.2(@nestjs/common@10.3.9(reflect-metadata@0.2.2)(rxjs@7.8.1))(@nestjs/core@10.3.9(@nestjs/common@10.3.9(reflect-metadata@0.2.2)(rxjs@7.8.1))(@nestjs/platform-express@10.3.9)(reflect-metadata@0.2.2)(rxjs@7.8.1))(reflect-metadata@0.2.2)(rxjs@7.8.1)(typeorm@0.3.20(pg@8.12.0)(ts-node@10.9.2(@types/node@20.14.9)(typescript@5.5.2)))
+      '@reactivex/rxjs':
+        specifier: ^6.6.7
+        version: 6.6.7
       pg:
         specifier: ^8.12.0
         version: 8.12.0
@@ -546,6 +549,10 @@ packages:
   '@pkgr/core@0.1.1':
     resolution: {integrity: sha512-cq8o4cWH0ibXh9VGi5P20Tu9XF/0fFXl9EUinr9QfTM7a7p0oTA4iJRCQWppXR1Pg8dSM0UCItCkPwsk9qWWYA==}
     engines: {node: ^12.20.0 || ^14.18.0 || >=16.0.0}
+
+  '@reactivex/rxjs@6.6.7':
+    resolution: {integrity: sha512-xZIV2JgHhWoVPm3uVcFbZDRVJfx2hgqmuTX7J4MuKaZ+j5jN29agniCPBwrlCmpA15/zLKcPi7/bogt0ZwOFyA==}
+    engines: {npm: '>=2.0.0'}
 
   '@sinclair/typebox@0.27.8':
     resolution: {integrity: sha512-+Fj43pSMwJs4KRrH/938Uf+uAELIgVBmQzg/q1YG10djyfA3TnrU8N8XzqCh/okZdszqBQTZf96idMfE5lnwTA==}
@@ -2765,6 +2772,9 @@ packages:
     resolution: {integrity: sha512-NoZ4roiN7LnbKn9QqE1amc9DJfzvZXxF4xDavcOWt1BPkdx+m+0gJuPM+S0vCe7zTJMYUP0R8pO2XMr+Y8oLIg==}
     engines: {node: '>=6'}
 
+  tslib@1.14.1:
+    resolution: {integrity: sha512-Xni35NKzjgMrwevysHTCArtLDpPvye8zV/0E4EyYn43P7/7qvQwPh9BGkHewbMulVntbigmcT7rdX3BNo9wRJg==}
+
   tslib@2.6.2:
     resolution: {integrity: sha512-AEYxH93jGFPn/a2iVAwW87VuUIkR1FVUKB77NwMF7nBTDkDrrT/Hpt/IrCJ0QXhW27jTBDcf5ZY7w6RiqTMw2Q==}
 
@@ -3644,6 +3654,10 @@ snapshots:
     optional: true
 
   '@pkgr/core@0.1.1': {}
+
+  '@reactivex/rxjs@6.6.7':
+    dependencies:
+      tslib: 1.14.1
 
   '@sinclair/typebox@0.27.8': {}
 
@@ -6126,6 +6140,8 @@ snapshots:
       json5: 2.2.3
       minimist: 1.2.8
       strip-bom: 3.0.0
+
+  tslib@1.14.1: {}
 
   tslib@2.6.2: {}
 
