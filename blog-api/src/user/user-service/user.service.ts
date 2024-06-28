@@ -2,10 +2,14 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { UserEntity } from '../user-model/user.entity';
 import { InjectRepository } from '@nestjs/typeOrm';
 import { Repository } from 'typeorm';
-import { Observable, catchError, from, map, switchMap, throwError } from 'rxjs';
-import { User } from '../user-model/user.interface';
+import { Observable, from, map, switchMap } from 'rxjs';
+import { User, UserRole } from '../user-model/user.interface';
 import { AuthService } from 'src/auth/auth-service/auth-service.service';
-
+import {
+  paginate,
+  IPaginationOptions,
+  Pagination,
+} from 'nestjs-typeorm-paginate';
 @Injectable()
 export class UserService {
   constructor(
@@ -15,35 +19,39 @@ export class UserService {
   ) {}
 
   async create(user: User): Promise<User> {
-    return from(this.authService.hashPassword(user.password))
-      .pipe(
-        switchMap((passwordHash: string) => {
-          const newUser = new UserEntity();
-          newUser.name = user.name;
-          newUser.username = user.username;
-          newUser.email = user.email;
-          newUser.password = passwordHash;
+    try {
+      const passwordHash = await this.authService.hashPassword(user.password);
 
-          return from(this.userRepository.save(newUser)).pipe(
-            map((user: User) => {
-              const { password, ...rest } = user;
-              return rest;
-            }),
-            catchError((error) => {
-              console.error('Error creating user:', error);
-              return throwError(() => new Error(error));
-            }),
-          );
-        }),
-      )
-      .toPromise();
+      const newUser = this.userRepository.create({
+        ...user,
+        role: UserRole.USER,
+        password: passwordHash,
+      });
+      const savedUser = await this.userRepository.save(newUser);
+      savedUser.password = undefined;
+      return savedUser;
+    } catch (error) {
+      console.error('Error creating user:', error);
+      return new Error(error);
+    }
   }
 
   findOne(id: number): Observable<User> {
     return from(this.userRepository.findOne({ where: { id } })).pipe(
       map((user: User) => {
-        const { password, ...rest } = user;
-        return rest;
+        user.password = undefined;
+        return user;
+      }),
+    );
+  }
+
+  paginateRes(options: IPaginationOptions): Observable<Pagination<User>> {
+    return from(paginate<User>(this.userRepository, options)).pipe(
+      map((userPagable: Pagination<User>) => {
+        userPagable.items.forEach(function (user) {
+          delete user.password;
+        });
+        return userPagable;
       }),
     );
   }
@@ -63,28 +71,19 @@ export class UserService {
     return from(this.userRepository.delete(id));
   }
 
+  // Updates User Data
   updateOne(id: number, user: User): Observable<any> {
     delete user.email;
     delete user.password;
+    delete user.role;
     return from(this.userRepository.update(id, user));
   }
 
-  // async validateUser(email: string, password: string): Promise<User> {
-  //   return this.findByEmail(email).pipe(
-  //     switchMap((user: User) =>
-  //       this.authService.comparePasswords(password, user.password).pipe(
-  //         map((match: boolean) => {
-  //           if (match) {
-  //             const { password, ...rest } = user;
-  //             return rest;
-  //           } else {
-  //             throw Error;
-  //           }
-  //         }),
-  //       ),
-  //     ),
-  //   );
-  // }
+  // Update UserRole
+  updateUserRole(id: number, user: User): Observable<any> {
+    return from(this.userRepository.update(id, { role: user.role }));
+  }
+  // Validate user
   async validateUser(email: string, password: string): Promise<User> {
     return from(this.findByEmail(email))
       .pipe(
@@ -97,8 +96,8 @@ export class UserService {
           ).pipe(
             map((match: boolean) => {
               if (match) {
-                const { password, ...result } = user;
-                return result;
+                user.password = undefined;
+                return user;
               } else {
                 throw new UnauthorizedException('Invalid credentials');
               }
@@ -109,12 +108,13 @@ export class UserService {
       .toPromise();
   }
 
+  // Find user by email
   async findByEmail(email: string): Promise<User> {
-    console.log(email);
     const validUser = await this.userRepository.findOne({ where: { email } });
     return validUser;
   }
 
+  // Login User
   async login(user: User): Promise<string> {
     try {
       const lowerEmail = user.email.toLowerCase();
@@ -131,21 +131,4 @@ export class UserService {
       throw new UnauthorizedException('Invalid email or password');
     }
   }
-
-  // login(user: User): Observable<string> {
-  //   return this.validateUser(user.email, user.password).pipe(
-  //     switchMap((user: User) => {
-  //       if (user) {
-  //         return this.authService
-  //           .generateJwtToken({
-  //             id: user.id,
-  //             email: user.email,
-  //           })
-  //           .pipe(map((jwt: string) => jwt));
-  //       } else {
-  //         return 'Invalid email or password';
-  //       }
-  //     }),
-  //   );
-  // }
 }
