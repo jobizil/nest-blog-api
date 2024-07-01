@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { UserEntity } from '../user-model/user.entity';
 import { InjectRepository } from '@nestjs/typeOrm';
-import { Repository } from 'typeorm';
+import { Like, Repository } from 'typeorm';
 import { Observable, from, map, switchMap } from 'rxjs';
 import { User, UserRole } from '../user-model/user.interface';
 import { AuthService } from 'src/auth/auth-service/auth-service.service';
@@ -51,6 +51,43 @@ export class UserService {
         userPagable.items.forEach(function (user) {
           delete user.password;
         });
+        return userPagable;
+      }),
+    );
+  }
+
+  filterBySearch(
+    options: IPaginationOptions,
+    user: User,
+  ): Observable<Pagination<User>> {
+    return from(
+      this.userRepository.findAndCount({
+        where: [{ username: Like(`%${user.username}%`) }],
+        skip: Number(options.page) * Number(options.limit) || 0,
+        take: Number(options.limit) || 20,
+        order: { id: 'ASC' },
+        select: ['id', 'name', 'email', 'username', 'role'],
+      }),
+    ).pipe(
+      map(([users, totalUsers]) => {
+        const userPagable: Pagination<User> = {
+          items: users,
+          links: {
+            first: `${options.route}?limit=${options.limit}`, // first page
+            previous: `${options.route}`,
+            next: `${options.route}?limit=${options.limit}&page=${Number(options.page) + 1}`,
+            last:
+              options.route +
+              `?limit=${options.limit}&page=${Math.ceil(totalUsers / Number(options.limit))}`,
+          },
+          meta: {
+            currentPage: Number(options.page),
+            itemCount: users.length,
+            itemsPerPage: Number(options.limit),
+            totalItems: totalUsers,
+            totalPages: Math.ceil(totalUsers / Number(options.limit)),
+          },
+        };
         return userPagable;
       }),
     );
