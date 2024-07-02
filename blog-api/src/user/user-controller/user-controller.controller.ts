@@ -8,16 +8,37 @@ import {
   Post,
   Put,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
+  Request,
+  Res,
 } from '@nestjs/common';
 import { UserService } from '../user-service/user.service';
 import { User, UserRole } from '../user-model/user.interface';
-import { Observable, catchError, map, from, of } from 'rxjs';
+import { Observable, catchError, map, from, tap, of } from 'rxjs';
 import { Pagination } from 'nestjs-typeorm-paginate';
 import { hasRoles } from 'src/auth/decorator/roles.decorator';
 import { JwtAuthGuard } from 'src/auth/auth-service/guards/jwt-guard';
 import { RolesGuard } from 'src/auth/auth-service/guards/roles-guards';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import path = require('path');
+import { v4 as uuidv4 } from 'uuid';
+import { IsUserGuard } from 'src/auth/auth-service/guards/isUser-guard';
 
+export const storage = {
+  storage: diskStorage({
+    destination: './uploads/profile-images',
+    filename: (req, file, cb) => {
+      const filename: string =
+        path.parse(file.originalname).name.replace(/\s/g, '') + '-' + uuidv4();
+      const extension: string = path.parse(file.originalname).ext;
+
+      cb(null, `${filename}${extension}`);
+    },
+  }),
+};
 @Controller('users')
 export class UserControllerController {
   constructor(private userService: UserService) {}
@@ -53,13 +74,18 @@ export class UserControllerController {
   index(
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
+    @Query('username') username: string,
   ): Observable<Pagination<User>> {
     limit = limit > 100 ? 100 : Number(limit);
-    return this.userService.paginateRes({
-      page,
-      limit,
-      route: 'http:localhost:20233/users/8',
-    });
+    const payload = {
+      page: Number(page),
+      limit: Number(limit),
+      route: 'http:localhost:20233/users',
+    };
+    if (!username || username === null || username === undefined) {
+      return this.userService.paginateRes(payload);
+    }
+    return this.userService.filterBySearch(payload, { username });
   }
 
   @Delete(':id')
@@ -67,14 +93,40 @@ export class UserControllerController {
     return this.userService.deleteOne(Number(params.id));
   }
 
+  @UseGuards(JwtAuthGuard, IsUserGuard)
   @Patch(':id')
   updateOne(@Param('id') id: string, @Body() user: User): Observable<any> {
     return this.userService.updateOne(Number(id), user);
   }
+
   @hasRoles(UserRole.ADMIN)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Put(':id/role')
   updateUserRole(@Param('id') id: string, @Body() user: User): Observable<any> {
     return this.userService.updateUserRole(Number(id), user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('upload')
+  @UseInterceptors(FileInterceptor('file', storage))
+  uploadFile(@UploadedFile() file, @Request() req): Observable<object> {
+    console.log(file);
+    const user = req.user;
+    console.log(user.userId);
+    return this.userService
+      .updateOne(user.userId, { profileImage: file.filename })
+      .pipe(tap((user: User) => console.log(user)));
+  }
+
+  @Get('profile-image/:imagename')
+  getUserProfileImage(
+    @Param('imagename') imagename: string,
+    @Res() res,
+  ): Observable<object> {
+    return of(
+      res.sendFile(
+        path.join(process.cwd(), 'uploads/profile-images/' + imagename),
+      ),
+    );
   }
 }
