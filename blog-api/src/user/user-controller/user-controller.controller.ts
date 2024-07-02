@@ -25,6 +25,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import path = require('path');
 import { v4 as uuidv4 } from 'uuid';
+import { IsUserGuard } from 'src/auth/auth-service/guards/isUser-guard';
 
 export const storage = {
   storage: diskStorage({
@@ -92,10 +93,12 @@ export class UserControllerController {
     return this.userService.deleteOne(Number(params.id));
   }
 
+  @UseGuards(JwtAuthGuard, IsUserGuard)
   @Patch(':id')
   updateOne(@Param('id') id: string, @Body() user: User): Observable<any> {
     return this.userService.updateOne(Number(id), user);
   }
+
   @hasRoles(UserRole.ADMIN)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Put(':id/role')
